@@ -1,6 +1,10 @@
 import copy
 import itertools
+import  properties
 
+util = []
+utilparent=[]
+tofind = []
 parentkeys = {}
 knownvalues = {}
 bayesntk = {}
@@ -12,14 +16,14 @@ def enum_ask_cond_woquery(observedvar):
     allvars.reverse()
     return x
 
-def find_max_eu(queryvar,observedeu):
+def find_max_eu(queryvar,observedeu, f):
 
     eu_values={}
     if len(queryvar)==1:
         observedeu[queryvar[0]]='+'
-        eu_values['+']=find_eu(observedeu)
+        eu_values['+']=find_eu(observedeu, f)
         observedeu[queryvar[0]] = '-'
-        eu_values['-'] = find_eu(observedeu)
+        eu_values['-'] = find_eu(observedeu, f)
         del observedeu[queryvar[0]]
         key=max(eu_values, key=eu_values.get)
         print >> f,key,eu_values[key]
@@ -32,7 +36,7 @@ def find_max_eu(queryvar,observedeu):
             # assign each combination to the unassigned parent
             for par in range(0, len(queryvar)):
                 newobs[queryvar[par]] = utilassign[par]
-            eu_values[utilassign]=find_eu(newobs)
+            eu_values[utilassign]=find_eu(newobs, f)
         key = max(eu_values, key=eu_values.get)
         printkey=""
         for val in key:
@@ -41,7 +45,7 @@ def find_max_eu(queryvar,observedeu):
         return eu_values[key]
 
 
-def find_eu(observedvars):
+def find_eu(observedvars, f):
     if (len(utilparent) == 1):
         evidence = copy.deepcopy(observedvars)
 
@@ -168,7 +172,6 @@ def enum_all_util(variables, observed):
         return resTrue + resFalse
 
 
-
 def findconditionalprob(observed, evidence):
     num = enum_ask_cond_woquery(observed)
     den = enum_ask_cond_woquery(evidence)
@@ -178,27 +181,26 @@ def findconditionalprob(observed, evidence):
 def findjointprob(observed):
     return enum_ask_cond_woquery(observed)
 
+
 def enum_ask_cond_woquery_opt(vars,observedvar):
     x = enum_all(vars, observedvar)
     return x
 
-def findresults():
+
+def findresults(f):
     for ques in tofind:
         if "P" in ques:
-            find_probability(ques)
-
+            find_probability(ques, f)
         elif "MEU" in ques:
-            find_meu(ques)
-
+            find_meu(ques, f)
         elif "EU" in ques:
             find_expec_utility(ques)
-
         elif "******" in ques:
             continued = True
             break
 
 
-def find_expec_utility(ques):
+def find_expec_utility(ques, f):
     ques = ques.strip(')').replace(ques[:3], '')
     if '|' in ques:
         observedeu = {}
@@ -214,10 +216,10 @@ def find_expec_utility(ques):
         for obvar in ques.split(','):
             ob = obvar.split('=')
             observedeu[ob[0].strip()] = ob[1].strip()
-    print >> f, find_eu(observedeu)
+    print >> f, find_eu(observedeu, f)
 
 
-def find_meu(ques):
+def find_meu(ques, f):
     ques = ques.strip(')').replace(ques[:4], '')
     queryvar = []
     if '|' in ques:
@@ -232,7 +234,7 @@ def find_meu(ques):
         observedeu = {}
         for obvar in ques.split(','):
             queryvar.append(obvar.strip())
-    find_max_eu(queryvar, observedeu)
+    find_max_eu(queryvar, observedeu, f)
 
 def find_more_probs(arr1, continued, i, inputlength, lines):
     if continued:
@@ -296,7 +298,7 @@ def probs_to_find(continued, i, lines, tofind):
     return continued, i
 
 
-def find_probability(ques):
+def find_probability(ques, f):
     ques = ques.strip(')').replace(ques[:2], '')
     # find marginal probability
     if ("|" not in ques) and ("," not in ques):
@@ -327,14 +329,9 @@ def find_probability(ques):
             evidence[ob[0].strip()] = ob[1].strip()
         print >> f, "%.2f" % float(int(findconditionalprob(observed, evidence) * 1000 + 1) / 1000.0)
 
-# OUTPUT TO FILE
-f = open('output.txt', 'w')
-util = []
-utilparent=[]
-tofind = []
 
 def main():
-    rawinput = open('input.txt', 'r')
+    rawinput = open(properties.INPUT_FILE_PATH, 'r')
     lines = rawinput.read().splitlines()
     i = 0
     inputlength = len(lines)
@@ -348,6 +345,7 @@ def main():
     continued, i = find_more_probs(arr1, continued, i, inputlength, lines)
     i += 1
 
+    f = open(properties.OUTPUT_FILE_PATH, 'w')
     print >> f, "test"
 
     # to add nodes with no parents to parentkeys
