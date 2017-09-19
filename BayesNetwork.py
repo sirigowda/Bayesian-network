@@ -1,8 +1,5 @@
 import copy
 import itertools
-import os
-import time
-from threading import Timer
 
 parentkeys = {}
 knownvalues = {}
@@ -170,101 +167,7 @@ def enum_all_util(variables, observed):
         vars.append(y)
         return resTrue + resFalse
 
-rawinput = open('input.txt', 'r')
-lines = rawinput.read().splitlines()
-j = 0
-part = 1
-table = 1
-variables = 1
-inputlength = len(lines)
-i = 0
-continued = False
-tofind = []
-for i in range(0, len(lines)):
-    if "******" in lines[i]:
-        continued = True
-        break
-    else:
-        tofind.append(lines[i])
-        i += 1
-i = i + 1
-arr1 = []
 
-k = 0
-if continued:
-    continued = False
-    while i < inputlength:
-        if "***" not in lines[i]:
-            # variable with no parents
-            if lines[i].isalpha():
-                allvars.append(lines[i])
-                bayesntk[lines[i]] = lines[i + 1]
-                arr1.append([lines[i]])
-                i = i + 1
-                arr1.append([lines[i]])
-
-            # variables with parents
-            elif "|" in lines[i]:
-                vars = []
-                tablelabel = lines[i].split()
-                bayestable = []
-                pars = []
-                allvars.append(tablelabel[0])
-
-                # parentkeys are maintained here
-                for par in range(1, len(tablelabel)):
-                    if "|" not in tablelabel[par]:
-                        pars.append(tablelabel[par])
-                parentkeys[tablelabel[0]] = pars
-                bayestable.append(pars)
-
-                # bayesnetwork is created here
-                for row in range(1, (2 ** (len(pars))) + 1):
-                    bayestable.append(lines[row + i])
-                bayesntk[lines[i].split()[0]] = bayestable
-                for var in tablelabel:
-                    if var.isalpha():
-                        vars.append(var)
-                arr1.append(vars)
-
-            # values in tables
-            elif "+" or "-" in lines[i]:
-                probs = []
-                for var in lines[i].split():
-                    probs.append(var)
-                arr1.append(probs)
-        else:
-            if "******" in lines[i]:
-                continued = True
-                break
-        i += 1
-i += 1
-
-# OUTPUT TO FILE
-f = open('output.txt', 'w')
-print >> f, "test"
-
-# to add nodes with no parents to parentkeys
-for v in allvars:
-    if v not in parentkeys:
-        parentkeys[v] = []
-
-# utility node stored in util array
-util = []
-if continued:
-    while i < inputlength:
-        util.append(lines[i])
-        if "|" in lines[i]:
-            vars = []
-            utilparent = lines[i].split('|')[1].strip().split()
-            for var in lines[i].split():
-                if var.isalpha():
-                    vars.append(var)
-        elif "+" or "-" in lines[i]:
-            probs = []
-            for var in lines[i].split():
-                probs.append(var)
-        i += 1
 
 def findconditionalprob(observed, evidence):
     num = enum_ask_cond_woquery(observed)
@@ -282,73 +185,191 @@ def enum_ask_cond_woquery_opt(vars,observedvar):
 def findresults():
     for ques in tofind:
         if "P" in ques:
-            ques = ques.strip(')').replace(ques[:2], '')
-
-            # find marginal probability
-            if ("|" not in ques) and ("," not in ques):
-                observed = {}
-                ob = ques.split('=')
-                observed[ob[0].strip()] = ob[1].strip()
-                print >>f,"%.2f" % float(int(findjointprob(observed)* 1000 + 1) / 1000.0)
-
-            # find joint probability
-            elif "|" not in ques:
-                observed = {}
-                for obvar in ques.split(','):
-                    ob = obvar.split('=')
-                    observed[ob[0].strip()] = ob[1].strip()
-                print >>f,  "%.2f" % float(int(findjointprob(observed)* 1000 + 1) / 1000.0)
-
-            # find conditional probability
-            else:
-                observed = {}
-                evidence = {}
-                obvquer = ques.split('|')
-                for obvar in obvquer[0].split(','):
-                    ob = obvar.split('=')
-                    observed[ob[0].strip()] = ob[1].strip()
-                for obvar in obvquer[1].split(','):
-                    ob = obvar.split('=')
-                    observed[ob[0].strip()] = ob[1].strip()
-                    evidence[ob[0].strip()] = ob[1].strip()
-                print >>f, "%.2f" % float(int(findconditionalprob(observed, evidence)* 1000 + 1) / 1000.0)
+            find_probability(ques)
 
         elif "MEU" in ques:
-            ques = ques.strip(')').replace(ques[:4], '')
-            queryvar=[]
-            if '|' in ques:
-                observedeu = {}
-                obvquer = ques.split('|')
-                for obvar in obvquer[0].split(','):
-                    queryvar.append(obvar.strip())
-                for obvar in obvquer[1].split(','):
-                    ob = obvar.split('=')
-                    observedeu[ob[0].strip()] = ob[1].strip()
-            else:
-                observedeu = {}
-                for obvar in ques.split(','):
-                    queryvar.append(obvar.strip())
-            find_max_eu(queryvar,observedeu)
+            find_meu(ques)
 
         elif "EU" in ques:
-            ques = ques.strip(')').replace(ques[:3], '')
-
-            if '|' in ques:
-                observedeu = {}
-                obvquer = ques.split('|')
-                for obvar in obvquer[0].split(','):
-                    ob = obvar.split('=')
-                    observedeu[ob[0].strip()] = ob[1].strip()
-                for obvar in obvquer[1].split(','):
-                    ob = obvar.split('=')
-                    observedeu[ob[0].strip()] = ob[1].strip()
-            else:
-                observedeu = {}
-                for obvar in ques.split(','):
-                    ob = obvar.split('=')
-                    observedeu[ob[0].strip()] = ob[1].strip()
-            print >> f, find_eu(observedeu)
+            find_expec_utility(ques)
 
         elif "******" in ques:
             continued = True
             break
+
+
+def find_expec_utility(ques):
+    ques = ques.strip(')').replace(ques[:3], '')
+    if '|' in ques:
+        observedeu = {}
+        obvquer = ques.split('|')
+        for obvar in obvquer[0].split(','):
+            ob = obvar.split('=')
+            observedeu[ob[0].strip()] = ob[1].strip()
+        for obvar in obvquer[1].split(','):
+            ob = obvar.split('=')
+            observedeu[ob[0].strip()] = ob[1].strip()
+    else:
+        observedeu = {}
+        for obvar in ques.split(','):
+            ob = obvar.split('=')
+            observedeu[ob[0].strip()] = ob[1].strip()
+    print >> f, find_eu(observedeu)
+
+
+def find_meu(ques):
+    ques = ques.strip(')').replace(ques[:4], '')
+    queryvar = []
+    if '|' in ques:
+        observedeu = {}
+        obvquer = ques.split('|')
+        for obvar in obvquer[0].split(','):
+            queryvar.append(obvar.strip())
+        for obvar in obvquer[1].split(','):
+            ob = obvar.split('=')
+            observedeu[ob[0].strip()] = ob[1].strip()
+    else:
+        observedeu = {}
+        for obvar in ques.split(','):
+            queryvar.append(obvar.strip())
+    find_max_eu(queryvar, observedeu)
+
+def find_more_probs(arr1, continued, i, inputlength, lines):
+    if continued:
+        continued = False
+        while i < inputlength:
+            if "***" not in lines[i]:
+                # variable with no parents
+                if lines[i].isalpha():
+                    allvars.append(lines[i])
+                    bayesntk[lines[i]] = lines[i + 1]
+                    arr1.append([lines[i]])
+                    i = i + 1
+                    arr1.append([lines[i]])
+
+                # variables with parents
+                elif "|" in lines[i]:
+                    vars = []
+                    tablelabel = lines[i].split()
+                    bayestable = []
+                    pars = []
+                    allvars.append(tablelabel[0])
+
+                    # parentkeys are maintained here
+                    for par in range(1, len(tablelabel)):
+                        if "|" not in tablelabel[par]:
+                            pars.append(tablelabel[par])
+                    parentkeys[tablelabel[0]] = pars
+                    bayestable.append(pars)
+
+                    # bayesnetwork is created here
+                    for row in range(1, (2 ** (len(pars))) + 1):
+                        bayestable.append(lines[row + i])
+                    bayesntk[lines[i].split()[0]] = bayestable
+                    for var in tablelabel:
+                        if var.isalpha():
+                            vars.append(var)
+                    arr1.append(vars)
+
+                # values in tables
+                elif "+" or "-" in lines[i]:
+                    probs = []
+                    for var in lines[i].split():
+                        probs.append(var)
+                    arr1.append(probs)
+            else:
+                if "******" in lines[i]:
+                    continued = True
+                    break
+            i += 1
+    return continued, i
+
+
+def probs_to_find(continued, i, lines, tofind):
+    for i in range(0, len(lines)):
+        if "******" in lines[i]:
+            continued = True
+            break
+        else:
+            tofind.append(lines[i])
+            i += 1
+    return continued, i
+
+
+def find_probability(ques):
+    ques = ques.strip(')').replace(ques[:2], '')
+    # find marginal probability
+    if ("|" not in ques) and ("," not in ques):
+        observed = {}
+        ob = ques.split('=')
+        observed[ob[0].strip()] = ob[1].strip()
+        print >> f, "%.2f" % float(int(findjointprob(observed) * 1000 + 1) / 1000.0)
+
+    # find joint probability
+    elif "|" not in ques:
+        observed = {}
+        for obvar in ques.split(','):
+            ob = obvar.split('=')
+            observed[ob[0].strip()] = ob[1].strip()
+        print >> f, "%.2f" % float(int(findjointprob(observed) * 1000 + 1) / 1000.0)
+
+    # find conditional probability
+    else:
+        observed = {}
+        evidence = {}
+        obvquer = ques.split('|')
+        for obvar in obvquer[0].split(','):
+            ob = obvar.split('=')
+            observed[ob[0].strip()] = ob[1].strip()
+        for obvar in obvquer[1].split(','):
+            ob = obvar.split('=')
+            observed[ob[0].strip()] = ob[1].strip()
+            evidence[ob[0].strip()] = ob[1].strip()
+        print >> f, "%.2f" % float(int(findconditionalprob(observed, evidence) * 1000 + 1) / 1000.0)
+
+# OUTPUT TO FILE
+f = open('output.txt', 'w')
+util = []
+utilparent=[]
+tofind = []
+
+def main():
+    rawinput = open('input.txt', 'r')
+    lines = rawinput.read().splitlines()
+    i = 0
+    inputlength = len(lines)
+    continued = False
+
+    continued, i = probs_to_find(continued, i, lines, tofind)
+    i = i + 1
+
+    arr1 = []
+    k = 0
+    continued, i = find_more_probs(arr1, continued, i, inputlength, lines)
+    i += 1
+
+    print >> f, "test"
+
+    # to add nodes with no parents to parentkeys
+    for v in allvars:
+        if v not in parentkeys:
+            parentkeys[v] = []
+
+    # utility node stored in util array
+    if continued:
+        while i < inputlength:
+            util.append(lines[i])
+            if "|" in lines[i]:
+                vars = []
+                utilparent = lines[i].split('|')[1].strip().split()
+                for var in lines[i].split():
+                    if var.isalpha():
+                        vars.append(var)
+            elif "+" or "-" in lines[i]:
+                probs = []
+                for var in lines[i].split():
+                    probs.append(var)
+            i += 1
+
+if __name__ == "__main__":
+    main()
